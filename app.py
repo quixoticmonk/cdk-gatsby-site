@@ -8,7 +8,7 @@ import yaml
 with open('config/project.yaml') as project_cfg_yaml:
     _project_cfg = yaml.load(project_cfg_yaml, Loader=yaml.FullLoader)
 
-_env_non_prod = cdk.Environment(account="xxxx", region="us-east-1")
+_env_non_prod = cdk.Environment(account="xxxxx", region="us-east-1")
 
 app = cdk.App()
 

@@ -1,5 +1,5 @@
 Pipeline:
-  Account: 'xxxxx'
+  Account: 'xxx'
   Region: us-east-1
 
   Synth:
@@ -25,6 +25,5 @@ Pipeline:
 
 Deployment:  
   dev:
-    AccountNumber: 'xxxxx'
+    AccountNumber: 'xxx'
     Region: us-east-1
-    VpcId: vpc-zzzzz

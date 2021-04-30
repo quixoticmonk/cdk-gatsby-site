@@ -5,15 +5,19 @@ from .s3_cloudfront_construct import S3StaticSiteConstruct
 
 class ApplicationStage(Stage):
     def __init__(self, scope: Construct, id: str, stage: str,
-                 env: Environment, asset_bucket: _s3.Bucket , **kwargs):
+                 env: Environment, **kwargs):
         super().__init__(scope, id, **kwargs)
 
-        AppStack(self, id, stage, env=env, asset_bucket=asset_bucket)
+        stack = AppStack(self, id, stage, env=env)
+
+        self.sourceBucketName = stack.sourceBucketName
 
 
 class AppStack(Stack):
-    def __init__(self, scope: Construct, construct_id: str, stage: str, asset_bucket: _s3.Bucket,
+    def __init__(self, scope: Construct, construct_id: str, stage: str,
                  **kwargs) -> None:
         super().__init__(scope, construct_id, **kwargs)
 
-        S3StaticSiteConstruct(self, "staticsite",asset_bucket)
+        staticsite = S3StaticSiteConstruct(self, "staticsite")
+
+        self.sourceBucketName = staticsite.sourcebucketname

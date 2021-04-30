@@ -8,7 +8,8 @@ from aws_cdk import (
 from aws_cdk.core import (
     Construct,
     Stack,
-    RemovalPolicy
+    RemovalPolicy,
+    CfnOutput
 )
 
 from aws_cdk.aws_cloudfront import (
@@ -29,12 +30,12 @@ from aws_cdk.aws_s3 import (
 
 
 class S3StaticSiteConstruct(Stack):
-    def __init__(self, scope: Construct, construct_id: str, asset_bucket: _s3.Bucket,
+    def __init__(self, scope: Construct, construct_id: str, stage: str,
                  **kwargs) -> None:
         super().__init__(scope, construct_id)
 
-        _access_logs_bucket = self.get_access_logs_bucket()
-        _staticsite_bucket = self.create_bucket(_access_logs_bucket)
+        _access_logs_bucket = self.get_access_logs_bucket(stage)
+        _staticsite_bucket = self.create_bucket(_access_logs_bucket, stage)
         _bucket_origin = _origins.S3Origin(_staticsite_bucket)
         _cfront_oai = self.create_origin_access_identity()
         _cfront_behavior_options = self.create_behavior_options(_bucket_origin)
@@ -43,23 +44,13 @@ class S3StaticSiteConstruct(Stack):
         _staticsite_bucket.add_to_resource_policy(
             self.create_s3_cfront_policy(_staticsite_bucket, _cfront_oai))
 
-        _deployment.BucketDeployment(
-            self,
-            "bucketdeployment",
-            destination_bucket=_staticsite_bucket,
-            destination_key_prefix="",
-            sources=[_deployment.Source.bucket(bucket=asset_bucket)],
-            retain_on_delete=False,
-            distribution=_cfront_dist,
-            distribution_paths=["*"],
-            prune=True,
-        )
-
         # self.create_deployment(_staticsite_bucket, _cfront_dist, "*")
 
         self.bucket = _staticsite_bucket
         self.access_logs_bucket = _access_logs_bucket
         self.cfront_dist = _cfront_dist
+
+        self.sourceBucketName = CfnOutput(self, "sourceBucketName", value=_staticsite_bucket.bucket_name)
 
     @property
     def main_source_bucket(self) -> _s3.IBucket:
@@ -73,19 +64,19 @@ class S3StaticSiteConstruct(Stack):
     def main_cfront_dist(self) -> _cfront.IDistribution:
         return self.cfront_dist
 
-    def get_access_logs_bucket(self):
+    def get_access_logs_bucket(self, stage):
         return Bucket(
             self,
             "accesslogsbucket",
-            bucket_name="access-logs-bucket-202104",
+            bucket_name="access-logs-bucket-202104"+stage,
             encryption=BucketEncryption.KMS_MANAGED
         )
 
-    def create_bucket(self, _access_logs_bucket: Bucket):
+    def create_bucket(self, _access_logs_bucket: Bucket, stage):
         return Bucket(
             self,
             "S3bucket",
-            bucket_name="staticsite202104",
+            bucket_name="staticsite202104"+stage,
             encryption=BucketEncryption.KMS_MANAGED,
             removal_policy=RemovalPolicy.DESTROY,
             auto_delete_objects=True,
@@ -129,6 +120,7 @@ class S3StaticSiteConstruct(Stack):
             log_bucket=_access_logs_bucket,
             log_includes_cookies=False,
             log_file_prefix="cfront-staticsite",
+
             # web_acl_id="",
             # certificate=,
             # geo_restriction=_cfront.GeoRestriction
