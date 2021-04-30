@@ -50,7 +50,7 @@ class S3StaticSiteConstruct(Stack):
         self.access_logs_bucket = _access_logs_bucket
         self.cfront_dist = _cfront_dist
 
-        self.sourceBucketName = CfnOutput(self, "sourceBucketName", value=_staticsite_bucket.bucket_name)
+        self.sourcebucketname = CfnOutput(self, "sourceBucketName", value=_staticsite_bucket.bucket_name)
 
     @property
     def main_source_bucket(self) -> _s3.IBucket:
