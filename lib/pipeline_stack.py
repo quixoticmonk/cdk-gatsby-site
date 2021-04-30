@@ -58,8 +58,7 @@ class PipelineStack(Stack):
         _pipeline = self.create_pipeline(_pipeline_dict, _cloud_assembly_artifact,
                                          _source_action, _synth_action)
 
-        self.add_application_stage(_pipeline, "dev",
-                                   project_cfg['Deployment']['dev']['VpcId'], _env_non_prod)
+        self.add_application_stage(_pipeline, "dev", _env_non_prod)
 
         self.repo = _repo
 
@@ -149,13 +148,12 @@ class PipelineStack(Stack):
             synth_action=_synth_action
         )
 
-    def add_application_stage(self, _pipeline, stage, vpc_id, env):
+    def add_application_stage(self, _pipeline, stage,  env):
         _pipeline.add_application_stage(
             ApplicationStage(
                 self,
                 "staticsiteDeploymentDev",
                 stage,
-                vpc_id,
                 env=env),
             manual_approvals=True
         )

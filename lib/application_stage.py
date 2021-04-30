@@ -1,5 +1,5 @@
 from aws_cdk.core import Construct, Stage, Environment, Stack
-from s3_cloudfront_construct import S3StaticSiteConstruct
+from .s3_cloudfront_construct import S3StaticSiteConstruct
 
 
 class ApplicationStage(Stage):

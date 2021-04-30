@@ -13,7 +13,7 @@
     "s3": {
       "bucket_name": "staticsite202104",
       "deployment_path": "*",
-      "deployment_prefix": "",
+      "deployment_prefix": ""
     },
       "repo":{
         "repo_name": "gatsby",

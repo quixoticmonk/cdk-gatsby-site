@@ -9,4 +9,4 @@ cdk.out
 lib/__pycache__
 lib/*.egg-info
 __pycache__/
-ven
+venv

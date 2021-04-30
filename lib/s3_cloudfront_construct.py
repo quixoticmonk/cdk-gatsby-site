@@ -146,6 +146,7 @@ class S3StaticSiteConstruct(Stack):
         _policy_statement.add_resources(f"{_bucket.bucket_arn}/*")
         _policy_statement.add_canonical_user_principal(
             _cfront_oai.attr_s3_canonical_user_id)
+        return _policy_statement
 
     def create_deployment(
             self, dest_bucket: Bucket,
@@ -158,7 +159,7 @@ class S3StaticSiteConstruct(Stack):
             sources=[_deployment.Source.asset("")],
             retain_on_delete=False,
             distribution=distribution,
-            distribution_paths=distribution_path,
+            distribution_paths=[distribution_path],
             prune=True,
 
         )
