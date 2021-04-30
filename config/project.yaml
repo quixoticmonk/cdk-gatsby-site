@@ -1,0 +1,30 @@
+Pipeline:
+  Account: 'xxxxx'
+  Region: us-east-1
+
+  Synth:
+    AdditionalPolicy:
+      - description: switch roles to target accoutnts for synth
+        actions:
+        - sts:GetSessionToken
+        - sts:AssumeRole
+        effect: ALLOW
+        resources:
+        - '*'
+      - description: Permission to get a Docker Image from ECR
+        actions:
+        - ecr:GetAuthorizationToken
+        - ecr:GetDownloadUrlForLayer
+        - ecr:BatchGetImage
+        - ecr:BatchCheckLayerAvailability
+        effect: ALLOW
+        resources:  
+        - '*'
+    Environment:
+      Privileged: True      
+
+Deployment:  
+  dev:
+    AccountNumber: 'xxxxx'
+    Region: us-east-1
+    VpcId: vpc-zzzzz

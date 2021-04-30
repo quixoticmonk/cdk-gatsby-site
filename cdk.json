@@ -1,0 +1,26 @@
+{
+  "app":"python app.py",
+  "context":{
+     "@aws-cdk/core:enableStackNameDuplicates":"true",
+     "@aws-cdk/core:newStyleStackSynthesis": true,
+     "aws-cdk:enableDiffNoFail":"true",
+     "@aws-cdk/core:stackRelativeExports":"true",
+     "@aws-cdk/aws-ecr-assets:dockerIgnoreSupport":true,
+     "@aws-cdk/aws-secretsmanager:parseOwnedSecretName":true,
+     "@aws-cdk/aws-kms:defaultKeyPolicies":true,
+     "@aws-cdk/aws-s3:grantWriteWithoutAcl":true,
+     "@aws-cdk/core:bootstrapQualifier": "sdfsdfsdf",
+    "s3": {
+      "bucket_name": "staticsite202104",
+      "deployment_path": "*",
+      "deployment_prefix": "",
+    },
+      "repo":{
+        "repo_name": "gatsby",
+        "repo_desc": "Repository for gatsby staticsite"
+     },
+     "pipeline":{
+        "pipeline_name":"gatsby-pipeline"
+     }
+  }
+}

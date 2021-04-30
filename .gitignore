@@ -1,0 +1,12 @@
+node_modules/
+.cache/
+public
+
+
+.venv
+.idea
+cdk.out
+lib/__pycache__
+lib/*.egg-info
+__pycache__/
+ven

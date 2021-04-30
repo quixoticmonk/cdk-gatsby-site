@@ -1,0 +1,12 @@
+-e .
+aws-cdk.core==1.100.0
+aws-cdk.aws-s3==1.100.0
+aws-cdk.aws-cloudfront==1.100.0
+aws-cdk.aws-s3-deployment==1.100.0
+aws-cdk.aws-cloudfront-origins==1.100.0
+aws-cdk.aws-codepipeline==1.100.0
+aws-cdk.aws-codecommit==1.100.0
+aws-cdk.aws-codepipeline-actions==1.100.0
+aws-cdk.aws-codebuild==1.100.0
+aws-cdk.aws-iam==1.100.0
+aws-cdk.pipelines==1.100.0
