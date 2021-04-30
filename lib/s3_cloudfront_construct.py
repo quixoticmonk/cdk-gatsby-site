@@ -29,7 +29,7 @@ from aws_cdk.aws_s3 import (
 
 
 class S3StaticSiteConstruct(Stack):
-    def __init__(self, scope: Construct, construct_id: str,
+    def __init__(self, scope: Construct, construct_id: str, asset_bucket: _s3.Bucket,
                  **kwargs) -> None:
         super().__init__(scope, construct_id)
 
@@ -43,20 +43,19 @@ class S3StaticSiteConstruct(Stack):
         _staticsite_bucket.add_to_resource_policy(
             self.create_s3_cfront_policy(_staticsite_bucket, _cfront_oai))
 
-        self.create_deployment(_staticsite_bucket, _cfront_dist, "*")
-
         _deployment.BucketDeployment(
             self,
             "bucketdeployment",
             destination_bucket=_staticsite_bucket,
             destination_key_prefix="",
-            sources=[_deployment.Source.asset("")],
+            sources=[_deployment.Source.bucket(bucket=asset_bucket)],
             retain_on_delete=False,
             distribution=_cfront_dist,
-            distribution_paths="*",
+            distribution_paths=["*"],
             prune=True,
-
         )
+
+        # self.create_deployment(_staticsite_bucket, _cfront_dist, "*")
 
         self.bucket = _staticsite_bucket
         self.access_logs_bucket = _access_logs_bucket
@@ -161,5 +160,4 @@ class S3StaticSiteConstruct(Stack):
             distribution=distribution,
             distribution_paths=[distribution_path],
             prune=True,
-
         )

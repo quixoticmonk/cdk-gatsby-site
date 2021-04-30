@@ -5,6 +5,7 @@ from aws_cdk import (
     aws_codepipeline as codepipeline,
     aws_codepipeline_actions as cpactions,
     aws_codecommit as codecommit,
+    aws_codebuild as codebuild,
     aws_iam as iam,
     pipelines,
 )
@@ -31,6 +32,7 @@ class PipelineStack(Stack):
                  project_cfg: dict, **kwargs) -> None:
         super().__init__(scope, construct_id, **kwargs)
 
+        _application_code = codepipeline.Artifact('application_code')
         _source_artifact = codepipeline.Artifact()
         _cloud_assembly_artifact = codepipeline.Artifact()
         _repo_dict = dict(self.node.try_get_context("repo"))
@@ -53,12 +55,13 @@ class PipelineStack(Stack):
             _cloud_assembly_artifact,
             _create_roles,
             _synth_accounts,
-            _additional_policy
+            _additional_policy,
+            _application_code
         )
         _pipeline = self.create_pipeline(_pipeline_dict, _cloud_assembly_artifact,
                                          _source_action, _synth_action)
 
-        self.add_application_stage(_pipeline, "dev", _env_non_prod)
+        self.add_application_stage(_pipeline, "dev", _env_non_prod, _pipeline.code_pipeline.artifact_bucket.bucket_name)
 
         self.repo = _repo
 
@@ -68,7 +71,7 @@ class PipelineStack(Stack):
 
     @staticmethod
     def create_synth_action(_source_artifact, _cloud_assembly_artifact,
-                            _create_roles, _synth_accounts, additional_policy):
+                            _create_roles, _synth_accounts, additional_policy, application_code):
         return pipelines.SimpleSynthAction(
             source_artifact=_source_artifact,
             cloud_assembly_artifact=_cloud_assembly_artifact,
@@ -81,7 +84,12 @@ class PipelineStack(Stack):
                 privileged=True,
                 compute_type=ComputeType.LARGE,
                 build_image=LinuxBuildImage.STANDARD_5_0
+            ),
+            additional_artifacts=[pipelines.AdditionalArtifact(
+                artifact=application_code,
+                directory='./'
             )
+            ]
         )
 
     @staticmethod
@@ -148,12 +156,14 @@ class PipelineStack(Stack):
             synth_action=_synth_action
         )
 
-    def add_application_stage(self, _pipeline, stage,  env):
+    def add_application_stage(self, _pipeline, stage, env, asset_bucket):
         _pipeline.add_application_stage(
             ApplicationStage(
                 self,
                 "staticsiteDeploymentDev",
                 stage,
-                env=env),
+                env=env,
+                asset_bucket=asset_bucket
+            ),
             manual_approvals=True
         )
