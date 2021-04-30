@@ -5,27 +5,34 @@ from aws_cdk import (
     aws_codepipeline as codepipeline,
     aws_codepipeline_actions as cpactions,
     aws_codecommit as codecommit,
-    aws_codebuild as codebuild,
     aws_iam as iam,
     pipelines,
 )
+from aws_cdk.core import Environment, Stack, Construct, Stage
+from aws_cdk.aws_codebuild import BuildEnvironment, ComputeType, LinuxBuildImage
 
-from aws_cdk.core import (
-    Environment,
-    Stack,
-    Construct
-)
-
-from aws_cdk.aws_codebuild import (
-    BuildEnvironment,
-    ComputeType,
-    LinuxBuildImage
-)
-
-from .application_stage import ApplicationStage
+from .s3_cloudfront_construct import S3StaticSiteConstruct
 
 _env_non_prod = Environment(account="xxxxx", region="us-east-1")
 _env_sandbox = core.Environment(account="xxxxx", region="us-east-1")
+
+
+class ApplicationStage(Stage):
+    def __init__(self, scope: Construct, id: str, stage: str,
+                 env: Environment, **kwargs):
+        super().__init__(scope, id, **kwargs)
+
+        stack = AppStack(self, id, stage, env=env)
+        self.sourceBucketName = stack.sourceBucketName
+
+
+class AppStack(Stack):
+    def __init__(self, scope: Construct, construct_id: str, stage: str,
+                 **kwargs) -> None:
+        super().__init__(scope, construct_id, **kwargs)
+
+        staticsite = S3StaticSiteConstruct(self, "staticsite")
+        self.sourceBucketName = staticsite.sourcebucketname
 
 
 class PipelineStack(Stack):
@@ -33,13 +40,13 @@ class PipelineStack(Stack):
                  project_cfg: dict, **kwargs) -> None:
         super().__init__(scope, construct_id, **kwargs)
 
-        _application_code = codepipeline.Artifact('application_code')
         _source_artifact = codepipeline.Artifact()
         _cloud_assembly_artifact = codepipeline.Artifact()
         _repo_dict = dict(self.node.try_get_context("repo"))
         _pipeline_dict = dict(self.node.try_get_context("pipeline"))
         _create_roles = ''
         _synth_accounts = ''
+        _s3_cfront_access_policy = self.create_s3_cloudfront_access_policy()
 
         _additional_policy = self.setup_additional_policy(
             _create_roles,
@@ -57,101 +64,24 @@ class PipelineStack(Stack):
             _create_roles,
             _synth_accounts,
             _additional_policy,
-            _application_code
 
         )
         _pipeline = self.create_pipeline(_pipeline_dict, _cloud_assembly_artifact,
                                          _source_action, _synth_action)
 
-        _infra = ApplicationStage(
-            self,
-            "staticsiteDeploymentDev",
-            "dev",
-            env=_env_non_prod
-        )
-
+        _infra = ApplicationStage(self, "staticsiteDeploymentDev",
+                                  "dev", env=_env_non_prod)
         _infra_stage = _pipeline.add_application_stage(_infra, manual_approvals=True)
 
         _infra_stage.add_actions(
-            pipelines.ShellScriptAction(
-                action_name="deployToS3",
-                additional_artifacts=[_source_artifact],
-                commands=[
-                    "echo $sourceBucketName",
-                    "ls -alr",
-                    ""
-                    "npm install",
-                    "npm run build",
-                    "aws s3 sync ./public s3://$sourceBucketName/ --delete",
-                ],
-                use_outputs={
-                    "sourceBucketName": _pipeline.stack_output(_infra.sourceBucketName),
-                },
-                role_policy_statements=[
-                    iam.PolicyStatement(
-                        effect=iam.Effect.ALLOW,
-                        actions=[
-                            "s3:PutObject",
-                            "s3:ListBucket",
-                            "s3:DeleteObject"
-                        ],
-                        resources=["*"]
-                    ),
-                    iam.PolicyStatement(
-                        effect=iam.Effect.ALLOW,
-                        actions=[
-                            "cloudfront:CreateInvalidation"
-                        ],
-                        resources=["*"]
-                    )
-                ]
-            )
-        )
+            self.shellscript_action(_source_artifact, _pipeline, _infra, _s3_cfront_access_policy))
 
-        _infra_sandbox = ApplicationStage(
-            self,
-            "staticsiteDeploymentSandbox",
-            "dev",
-            env=_env_sandbox
-        )
-
+        _infra_sandbox = ApplicationStage(self, "staticsiteDeploymentSandbox",
+                                          "sandbox", env=_env_sandbox)
         _infra_stage_sandbox = _pipeline.add_application_stage(_infra_sandbox, manual_approvals=True)
 
         _infra_stage_sandbox.add_actions(
-            pipelines.ShellScriptAction(
-                action_name="deployToS3sandbox",
-                additional_artifacts=[_source_artifact],
-                commands=[
-                    "echo $sourceBucketName",
-                    "ls -alr",
-                    ""
-                    "npm install",
-                    "npm run build",
-                    "aws s3 sync ./public s3://$sourceBucketName/ --delete",
-                ],
-                use_outputs={
-                    "sourceBucketName": _pipeline.stack_output(_infra_sandbox.sourceBucketName),
-                },
-                role_policy_statements=[
-                    iam.PolicyStatement(
-                        effect=iam.Effect.ALLOW,
-                        actions=[
-                            "s3:PutObject",
-                            "s3:ListBucket",
-                            "s3:DeleteObject"
-                        ],
-                        resources=["*"]
-                    ),
-                    iam.PolicyStatement(
-                        effect=iam.Effect.ALLOW,
-                        actions=[
-                            "cloudfront:CreateInvalidation"
-                        ],
-                        resources=["*"]
-                    )
-                ]
-            )
-        )
+            self.shellscript_action(_source_artifact, _pipeline, _infra_sandbox, _s3_cfront_access_policy))
 
         self.repo = _repo
 
@@ -161,7 +91,7 @@ class PipelineStack(Stack):
 
     @staticmethod
     def create_synth_action(_source_artifact, _cloud_assembly_artifact,
-                            _create_roles, _synth_accounts, additional_policy, application_code):
+                            _create_roles, _synth_accounts, additional_policy):
         return pipelines.SimpleSynthAction(
             source_artifact=_source_artifact,
             cloud_assembly_artifact=_cloud_assembly_artifact,
@@ -175,7 +105,6 @@ class PipelineStack(Stack):
                 compute_type=ComputeType.LARGE,
                 build_image=LinuxBuildImage.STANDARD_5_0
             ),
-            # additional_artifacts=[pipelines.AdditionalArtifact(artifact=application_code,directory="./public")]
         )
 
     @staticmethod
@@ -242,13 +171,40 @@ class PipelineStack(Stack):
             synth_action=_synth_action
         )
 
-    def add_application_stage(self, _pipeline, stage, env):
-        _pipeline.add_application_stage(
-            ApplicationStage(
-                self,
-                "staticsiteDeploymentDev",
-                stage,
-                env=env
-            ),
-            manual_approvals=True
+    @staticmethod
+    def create_s3_cloudfront_access_policy():
+        return [iam.PolicyStatement(
+            effect=iam.Effect.ALLOW,
+            actions=[
+                "s3:PutObject",
+                "s3:ListBucket",
+                "s3:DeleteObject"
+            ],
+            resources=["*"]
+        ),
+            iam.PolicyStatement(
+                effect=iam.Effect.ALLOW,
+                actions=[
+                    "cloudfront:CreateInvalidation"
+                ],
+                resources=["*"]
+            )]
+
+    @staticmethod
+    def shellscript_action(source_artifact, pipeline, app_stage, policy_statement):
+        return pipelines.ShellScriptAction(
+            action_name="deployToS3",
+            additional_artifacts=[source_artifact],
+            commands=[
+                "echo $sourceBucketName",
+                "ls -alr",
+                ""
+                "npm install",
+                "npm run build",
+                "aws s3 sync ./public s3://$sourceBucketName/ --delete",
+            ],
+            use_outputs={
+                "sourceBucketName": pipeline.stack_output(app_stage.sourceBucketName),
+            },
+            role_policy_statements=policy_statement
         )

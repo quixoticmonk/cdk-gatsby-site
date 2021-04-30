@@ -18,9 +18,7 @@ with open('./tags.json', 'r') as file:
 for key, value in tags.items():
     cdk.Tags.of(app).add(key, value)
 
-PipelineStack(app,
-              'staticapppipelinestack',
-              project_cfg=_project_cfg,
-              env=_env_non_prod)
+PipelineStack(app, 'staticapppipelinestack',
+              project_cfg=_project_cfg, env=_env_non_prod)
 
 app.synth()
