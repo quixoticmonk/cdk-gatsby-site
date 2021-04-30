@@ -31,7 +31,7 @@ class AppStack(Stack):
                  **kwargs) -> None:
         super().__init__(scope, construct_id, **kwargs)
 
-        staticsite = S3StaticSiteConstruct(self, "staticsite")
+        staticsite = S3StaticSiteConstruct(self, "staticsite", stage)
         self.sourceBucketName = staticsite.sourcebucketname
 
 
