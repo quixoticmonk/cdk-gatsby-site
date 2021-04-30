@@ -88,7 +88,7 @@ class PipelineStack(Stack):
             additional_artifacts=[pipelines.AdditionalArtifact(
                 artifact=application_code,
                 directory='./'
-            )
+            ), _cloud_assembly_artifact
             ]
         )
 
