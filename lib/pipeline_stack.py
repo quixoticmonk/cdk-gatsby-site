@@ -76,12 +76,12 @@ class PipelineStack(Stack):
         _infra_stage.add_actions(
             self.shellscript_action(_source_artifact, _pipeline, _infra, _s3_cfront_access_policy))
 
-        _infra_sandbox = ApplicationStage(self, "staticsiteDeploymentSandbox",
-                                          "sandbox", env=_env_sandbox)
-        _infra_stage_sandbox = _pipeline.add_application_stage(_infra_sandbox, manual_approvals=True)
-
-        _infra_stage_sandbox.add_actions(
-            self.shellscript_action(_source_artifact, _pipeline, _infra_sandbox, _s3_cfront_access_policy))
+        # _infra_sandbox = ApplicationStage(self, "staticsiteDeploymentSandbox",
+        #                                   "sandbox", env=_env_sandbox)
+        # _infra_stage_sandbox = _pipeline.add_application_stage(_infra_sandbox, manual_approvals=True)
+        #
+        # _infra_stage_sandbox.add_actions(
+        #     self.shellscript_action(_source_artifact, _pipeline, _infra_sandbox, _s3_cfront_access_policy))
 
         self.repo = _repo
 
@@ -197,8 +197,6 @@ class PipelineStack(Stack):
             additional_artifacts=[source_artifact],
             commands=[
                 "echo $sourceBucketName",
-                "ls -alr",
-                ""
                 "npm install",
                 "npm run build",
                 "aws s3 sync ./public s3://$sourceBucketName/ --delete",
