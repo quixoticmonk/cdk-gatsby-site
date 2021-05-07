@@ -25,7 +25,6 @@ from aws_cdk.aws_cloudfront import (
 from aws_cdk.aws_s3 import (
     Bucket,
     BucketEncryption,
-    BlockPublicAccess
 )
 
 
@@ -36,15 +35,17 @@ class S3StaticSiteConstruct(Stack):
 
         _access_logs_bucket = self.get_access_logs_bucket(stage)
         _staticsite_bucket = self.create_bucket(_access_logs_bucket, stage)
-        _bucket_origin = _origins.S3Origin(_staticsite_bucket)
         _cfront_oai = self.create_origin_access_identity()
+        _bucket_origin = _origins.S3Origin(
+            bucket=_staticsite_bucket,
+            origin_access_identity=_cfront_oai,
+            origin_path="/"
+            )
         _cfront_behavior_options = self.create_behavior_options(_bucket_origin)
         _cfront_dist = self.create_distribution(_cfront_behavior_options, _access_logs_bucket)
 
         _staticsite_bucket.add_to_resource_policy(
             self.create_s3_cfront_policy(_staticsite_bucket, _cfront_oai))
-
-        # self.create_deployment(_staticsite_bucket, _cfront_dist, "*")
 
         self.bucket = _staticsite_bucket
         self.access_logs_bucket = _access_logs_bucket
@@ -83,9 +84,9 @@ class S3StaticSiteConstruct(Stack):
             versioned=True,
             website_index_document="index.html",
             website_error_document="index.html",
-            block_public_access=BlockPublicAccess.BLOCK_ALL,
             server_access_logs_bucket=_access_logs_bucket,
-            server_access_logs_prefix="gatsbystaticsite"
+            server_access_logs_prefix="gatsbystaticsite",
+            public_read_access=False
         )
 
     def create_origin_access_identity(self):
@@ -102,7 +103,9 @@ class S3StaticSiteConstruct(Stack):
         return BehaviorOptions(
             allowed_methods=AllowedMethods.ALLOW_GET_HEAD_OPTIONS,
             cache_policy=CachePolicy.CACHING_OPTIMIZED,
-            origin=_bucket_origin
+            origin=_bucket_origin,
+            viewer_protocol_policy=_cfront.ViewerProtocolPolicy.REDIRECT_TO_HTTPS,
+
         )
 
     def create_distribution(self, _cfront_behavior_options: BehaviorOptions, _access_logs_bucket: Bucket):
@@ -138,18 +141,3 @@ class S3StaticSiteConstruct(Stack):
         _policy_statement.add_canonical_user_principal(
             _cfront_oai.attr_s3_canonical_user_id)
         return _policy_statement
-
-    def create_deployment(
-            self, dest_bucket: Bucket,
-            distribution: Distribution, distribution_path: str):
-        return _deployment.BucketDeployment(
-            self,
-            "bucketdeployment",
-            destination_bucket=dest_bucket,
-            destination_key_prefix="",
-            sources=[_deployment.Source.asset("")],
-            retain_on_delete=False,
-            distribution=distribution,
-            distribution_paths=[distribution_path],
-            prune=True,
-        )
