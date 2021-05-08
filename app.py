@@ -21,4 +21,5 @@ for key, value in tags.items():
 PipelineStack(app, 'staticapppipelinestack',
               project_cfg=_project_cfg, env=_env_non_prod)
 
+
 app.synth()

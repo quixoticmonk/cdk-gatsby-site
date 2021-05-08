@@ -36,16 +36,31 @@ class S3StaticSiteConstruct(Stack):
         _access_logs_bucket = self.get_access_logs_bucket(stage)
         _staticsite_bucket = self.create_bucket(_access_logs_bucket, stage)
         _cfront_oai = self.create_origin_access_identity()
-        _bucket_origin = _origins.S3Origin(
-            bucket=_staticsite_bucket,
-            origin_access_identity=_cfront_oai,
-            origin_path="/"
-            )
-        _cfront_behavior_options = self.create_behavior_options(_bucket_origin)
-        _cfront_dist = self.create_distribution(_cfront_behavior_options, _access_logs_bucket)
+        _policy_statement = self.create_s3_cfront_policy(_staticsite_bucket, _cfront_oai)
+        _staticsite_bucket.add_to_resource_policy(_policy_statement)
 
-        _staticsite_bucket.add_to_resource_policy(
-            self.create_s3_cfront_policy(_staticsite_bucket, _cfront_oai))
+        _cfront_dist = _cfront.CloudFrontWebDistribution(
+            self,
+            "staticsitedistribution",
+            http_version=_cfront.HttpVersion.HTTP2,
+            origin_configs=[
+                _cfront.SourceConfiguration(
+                    behaviors=[
+                        _cfront.Behavior(
+                            allowed_methods=_cfront.CloudFrontAllowedMethods.GET_HEAD_OPTIONS,
+                            is_default_behavior=True
+                        )
+                    ],
+                    s3_origin_source=_cfront.S3OriginConfig(
+                        s3_bucket_source=_staticsite_bucket
+                    ),
+                )
+            ],
+            default_root_object="index.html",
+            viewer_protocol_policy=_cfront.ViewerProtocolPolicy.REDIRECT_TO_HTTPS,
+            price_class=_cfront.PriceClass.PRICE_CLASS_ALL,
+            enable_ip_v6=False,
+        )
 
         self.bucket = _staticsite_bucket
         self.access_logs_bucket = _access_logs_bucket
@@ -69,7 +84,7 @@ class S3StaticSiteConstruct(Stack):
         return Bucket(
             self,
             "accesslogsbucket",
-            bucket_name="access-logs-bucket-202104"+stage,
+            bucket_name="access-logs-bucket-202104" + stage,
             encryption=BucketEncryption.KMS_MANAGED
         )
 
@@ -77,8 +92,8 @@ class S3StaticSiteConstruct(Stack):
         return Bucket(
             self,
             "S3bucket",
-            bucket_name="staticsite202104"+stage,
-            encryption=BucketEncryption.KMS_MANAGED,
+            bucket_name="staticsite202104" + stage,
+            encryption=BucketEncryption.S3_MANAGED,
             removal_policy=RemovalPolicy.DESTROY,
             auto_delete_objects=True,
             versioned=True,
@@ -86,52 +101,23 @@ class S3StaticSiteConstruct(Stack):
             website_error_document="index.html",
             server_access_logs_bucket=_access_logs_bucket,
             server_access_logs_prefix="gatsbystaticsite",
-            public_read_access=False
+            block_public_access=_s3.BlockPublicAccess(
+                block_public_policy=True,
+                block_public_acls=True,
+                ignore_public_acls=True,
+                restrict_public_buckets=True
+            )
         )
 
     def create_origin_access_identity(self):
-        return CfnCloudFrontOriginAccessIdentity(
+        return _cfront.OriginAccessIdentity(
             self,
             "oai",
-            cloud_front_origin_access_identity_config={
-                "comment": "cloudfront access to S3"
-            }
+            comment="Cloudfront access to S3"
         )
 
     @staticmethod
-    def create_behavior_options(_bucket_origin):
-        return BehaviorOptions(
-            allowed_methods=AllowedMethods.ALLOW_GET_HEAD_OPTIONS,
-            cache_policy=CachePolicy.CACHING_OPTIMIZED,
-            origin=_bucket_origin,
-            viewer_protocol_policy=_cfront.ViewerProtocolPolicy.REDIRECT_TO_HTTPS,
-
-        )
-
-    def create_distribution(self, _cfront_behavior_options: BehaviorOptions, _access_logs_bucket: Bucket):
-        return Distribution(
-            self,
-            "staticsitedistribution",
-            default_behavior=_cfront_behavior_options,
-            enabled=True,
-            enable_logging=True,
-            enable_ipv6=True,
-            minimum_protocol_version=SecurityPolicyProtocol.TLS_V1_2_2019,
-            price_class=PriceClass.PRICE_CLASS_ALL,
-            default_root_object="",
-            comment="",
-            log_bucket=_access_logs_bucket,
-            log_includes_cookies=False,
-            log_file_prefix="cfront-staticsite",
-
-            # web_acl_id="",
-            # certificate=,
-            # geo_restriction=_cfront.GeoRestriction
-        )
-
-    @staticmethod
-    def create_s3_cfront_policy(
-            _bucket: Bucket, _cfront_oai: CfnCloudFrontOriginAccessIdentity):
+    def create_s3_cfront_policy(_bucket: Bucket, _cfront_oai: _cfront.OriginAccessIdentity):
         _policy_statement = _iam.PolicyStatement()
         _policy_statement.add_actions('s3:GetBucket*')
         _policy_statement.add_actions('s3:GetObject*')
@@ -139,5 +125,5 @@ class S3StaticSiteConstruct(Stack):
         _policy_statement.add_resources(_bucket.bucket_arn)
         _policy_statement.add_resources(f"{_bucket.bucket_arn}/*")
         _policy_statement.add_canonical_user_principal(
-            _cfront_oai.attr_s3_canonical_user_id)
+            _cfront_oai.cloud_front_origin_access_identity_s3_canonical_user_id)
         return _policy_statement
